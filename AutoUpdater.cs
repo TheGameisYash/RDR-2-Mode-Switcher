@@ -19,9 +19,9 @@ namespace RDR2ModeSwitcher
 
     public static class AutoUpdater
     {
-        // Change this to your update server URL (GitHub, your website, etc.)
-        private const string UPDATE_CHECK_URL = "https://raw.githubusercontent.com/YOUR-USERNAME/RDR2ModeSwitcher/main/update.json";
-        private const string CURRENT_VERSION = "1.0.0"; // Update this with each release
+        // Your CORRECT GitHub repository URL
+        private const string UPDATE_CHECK_URL = "https://raw.githubusercontent.com/TheGameisYash/RDR-2-Mode-Switcher/main/update.json";
+        private const string CURRENT_VERSION = "1.0.0";
 
         public static async Task<UpdateInfo> CheckForUpdatesAsync()
         {
@@ -45,7 +45,6 @@ namespace RDR2ModeSwitcher
             }
             catch (Exception ex)
             {
-                // Log error but don't block app launch
                 System.Diagnostics.Debug.WriteLine($"Update check failed: {ex.Message}");
             }
 
@@ -57,7 +56,7 @@ namespace RDR2ModeSwitcher
             try
             {
                 string tempPath = Path.Combine(Path.GetTempPath(), "RDR2ModeSwitcher_Update.exe");
-                string updaterPath = Path.Combine(Application.StartupPath, "Updater.exe");
+                string batchPath = Path.Combine(Path.GetTempPath(), "RDR2_update.bat");
 
                 // Download the new version
                 using (WebClient client = new WebClient())
@@ -70,18 +69,31 @@ namespace RDR2ModeSwitcher
                     await client.DownloadFileTaskAsync(new Uri(updateInfo.DownloadUrl), tempPath);
                 }
 
-                // Create updater script
-                CreateUpdaterScript(tempPath, updaterPath);
+                // Create batch script to replace exe
+                string currentExe = Application.ExecutablePath;
+                string batchScript = $@"@echo off
+timeout /t 2 /nobreak > nul
+taskkill /F /IM RDR2ModeSwitcher.exe > nul 2>&1
+timeout /t 1 /nobreak > nul
+del ""{currentExe}.old"" > nul 2>&1
+move /Y ""{currentExe}"" ""{currentExe}.old""
+move /Y ""{tempPath}"" ""{currentExe}""
+start """" ""{currentExe}""
+timeout /t 2 /nobreak > nul
+del ""{currentExe}.old"" > nul 2>&1
+del ""%~f0"" & exit";
 
-                // Launch updater and exit current app
-                ProcessStartInfo startInfo = new ProcessStartInfo
+                File.WriteAllText(batchPath, batchScript);
+
+                // Launch updater batch file
+                Process.Start(new ProcessStartInfo
                 {
-                    FileName = updaterPath,
-                    UseShellExecute = true,
-                    Verb = "runas" // Request admin rights
-                };
+                    FileName = batchPath,
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    WindowStyle = ProcessWindowStyle.Hidden
+                });
 
-                Process.Start(startInfo);
                 return true;
             }
             catch (Exception ex)
@@ -90,50 +102,6 @@ namespace RDR2ModeSwitcher
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return false;
             }
-        }
-
-        private static void CreateUpdaterScript(string newExePath, string updaterPath)
-        {
-            // Create a batch script that will replace the old exe with new one
-            string currentExe = Application.ExecutablePath;
-            string currentExeBackup = currentExe + ".old";
-
-            string batchScript = $@"
-@echo off
-timeout /t 2 /nobreak > nul
-taskkill /F /IM RDR2ModeSwitcher.exe > nul 2>&1
-timeout /t 1 /nobreak > nul
-move /Y ""{currentExe}"" ""{currentExeBackup}"" > nul 2>&1
-move /Y ""{newExePath}"" ""{currentExe}""
-start """" ""{currentExe}""
-timeout /t 2 /nobreak > nul
-del ""{currentExeBackup}"" > nul 2>&1
-del ""%~f0"" & exit
-";
-
-            File.WriteAllText(updaterPath.Replace(".exe", ".bat"), batchScript);
-
-            // Create updater.exe (simple launcher for the batch file)
-            CreateUpdaterExe(updaterPath);
-        }
-
-        private static void CreateUpdaterExe(string updaterPath)
-        {
-            string batchPath = updaterPath.Replace(".exe", ".bat");
-
-            // Simple VBS script to run batch silently
-            string vbsScript = $@"
-Set WshShell = CreateObject(""WScript.Shell"")
-WshShell.Run chr(34) & ""{batchPath}"" & Chr(34), 0
-Set WshShell = Nothing
-";
-
-            string vbsPath = updaterPath.Replace(".exe", ".vbs");
-            File.WriteAllText(vbsPath, vbsScript);
-
-            // Create a simple exe wrapper (you can use ILMerge or embed this)
-            // For now, we'll just use the VBS approach
-            File.Copy(vbsPath, updaterPath, true);
         }
 
         public static string GetCurrentVersion()
