@@ -23,13 +23,56 @@ namespace RDR2ModeSwitcher
         private bool isWorking = false;
         private Point lastPoint;
 
+        // NEW: keep track of the launched game process
+        private Process gameProcess;
+
+        // NEW: stats button
+        private Button btnStats;
+
+        // OPTIONAL: tooltip for stats button
+        private ToolTip toolTip;
+
         public MainForm(AppSettings settings)
         {
             _settings = settings;
             InitializeComponent();
             SetupTrayIcon();
+
+            // NEW: create stats button after InitializeComponent so topBar exists
+            CreateStatsButton();
+
             UpdateStats();
             this.FormClosing += MainForm_FormClosing;
+        }
+
+        // NEW: create the stats button and add to top bar
+        private void CreateStatsButton()
+        {
+            // If you already have a ToolTip component from designer, you can skip this
+            toolTip = new ToolTip();
+
+            btnStats = new Button
+            {
+                Text = "📊",
+                Location = new Point(645, 10), // Adjust as needed
+                Size = new Size(40, 40),
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 14),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(15, 255, 255, 255),
+                Cursor = Cursors.Hand
+            };
+
+            btnStats.FlatAppearance.BorderColor = Color.FromArgb(40, 255, 255, 255);
+            btnStats.FlatAppearance.BorderSize = 1;
+            btnStats.FlatAppearance.MouseOverBackColor = Color.FromArgb(30, 255, 255, 255);
+            btnStats.Click += BtnStats_Click;
+
+            // Correct way to set tooltip for a Button
+            toolTip.SetToolTip(btnStats, "View Play Time Statistics");
+
+            // Assumes you have a Panel or control named topBar
+            topBar.Controls.Add(btnStats);
         }
 
         private void TopBar_MouseDown(object sender, MouseEventArgs e)
@@ -95,9 +138,8 @@ namespace RDR2ModeSwitcher
                 SetWorkingState(true, "🚀 Launching Story Mode...", Color.Cyan);
                 await Task.Delay(500);
 
-                LaunchRDR2();
-                LaunchHistoryManager.AddEntry("Story Mode", "Launched");
-                UpdateStats();
+                // UPDATED: use LaunchGame so tracking + history are handled
+                LaunchGame("Story Mode");
 
                 MinimizeToTray();
                 await MonitorGameProcessAsync();
@@ -127,9 +169,8 @@ namespace RDR2ModeSwitcher
                 SetWorkingState(true, "🚀 Launching Online Mode...", Color.Cyan);
                 await Task.Delay(500);
 
-                LaunchRDR2();
-                LaunchHistoryManager.AddEntry("Online Mode", "Launched");
-                UpdateStats();
+                // UPDATED: use LaunchGame so tracking + history are handled
+                LaunchGame("Online Mode");
 
                 MinimizeToTray();
                 await MonitorGameProcessAsync();
@@ -194,6 +235,48 @@ namespace RDR2ModeSwitcher
             doc.Save(SettingsXmlPath);
         }
 
+        // NEW: replaces the old LaunchRDR2 logic for launching + tracking
+        private void LaunchGame(string mode)
+        {
+            try
+            {
+                string exePath = Path.Combine(GameDir, "PlayRDR2.exe");
+
+                if (!File.Exists(exePath))
+                {
+                    MessageBox.Show($"Executable not found: {exePath}", "Error",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                // Launch game and keep the process
+                gameProcess = Process.Start(new ProcessStartInfo
+                {
+                    FileName = exePath,
+                    UseShellExecute = true,
+                    WorkingDirectory = GameDir
+                });
+
+                // Start tracking
+                PlayTimeTracker.StartTracking(mode, gameProcess);
+
+                // Add to history
+                LaunchHistoryManager.AddEntry(mode, "Launched");
+                UpdateStats();
+
+                MessageBox.Show($"{mode} launched successfully!\nPlay time tracking started.",
+                    "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                LaunchHistoryManager.AddEntry(mode, $"Failed: {ex.Message}");
+                MessageBox.Show($"Failed to launch: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // If you no longer need this, you can remove it.
+        // Keeping it UNUSED for now in case other code calls it.
         private void LaunchRDR2()
         {
             string exe = Path.Combine(GameDir, "PlayRDR2.exe");
@@ -220,6 +303,9 @@ namespace RDR2ModeSwitcher
                     break;
                 await Task.Delay(3000);
             }
+
+            // NEW: stop tracking when the game actually closes
+            PlayTimeTracker.StopTracking();
         }
 
         private void PlayDoneSound()
@@ -302,6 +388,15 @@ namespace RDR2ModeSwitcher
             }
         }
 
+        // NEW: open play time stats window
+        private void BtnStats_Click(object sender, EventArgs e)
+        {
+            using (var statsForm = new PlayTimeStatsForm())
+            {
+                statsForm.ShowDialog();
+            }
+        }
+
         private void SetupTrayIcon()
         {
             var trayMenu = new ContextMenuStrip();
@@ -336,6 +431,8 @@ namespace RDR2ModeSwitcher
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
         {
+            // NEW: stop tracking on app exit as well
+            PlayTimeTracker.StopTracking();
             trayIcon?.Dispose();
         }
 

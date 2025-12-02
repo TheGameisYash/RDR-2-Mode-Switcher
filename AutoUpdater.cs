@@ -21,7 +21,8 @@ namespace RDR2ModeSwitcher
     {
         // Your CORRECT GitHub repository URL
         private const string UPDATE_CHECK_URL = "https://raw.githubusercontent.com/TheGameisYash/RDR-2-Mode-Switcher/main/update.json";
-        private const string CURRENT_VERSION = "1.0.0";
+        private const string CURRENT_VERSION = "1.0.5";
+
 
         public static async Task<UpdateInfo> CheckForUpdatesAsync()
         {
