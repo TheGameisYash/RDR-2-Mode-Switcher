@@ -1,7 +1,7 @@
 {
-    "Version": "1.0.5",
-    "DownloadUrl": "https://github.com/TheGameisYash/RDR-2-Mode-Switcher/releases/download/V/RDR2ModeSwitcher.exe",
-    "Changelog": "Added Stats Tracker",
-    "ForceUpdate": true,
-    "FileSize": 61500
+    "Version": "1.0.6",
+    "DownloadUrl": "https://github.com/TheGameisYash/RDR-2-Mode-Switcher/releases/download/v1.0.6/RDR2ModeSwitcher.exe",
+    "Changelog": "• Added Play Time Tracker with statistics\n• Session history and analytics\n• Real-time game monitoring\n• Enhanced glassmorphism UI\n• Bug fixes and improvements",
+    "ForceUpdate": true
+
 }
