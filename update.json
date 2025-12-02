@@ -2,6 +2,6 @@
   "Version": "1.0.0",
   "DownloadUrl": "https://github.com/TheGameisYash/RDR-2-Mode-Switcher/releases/download/V/RDR2ModeSwitcher.exe",
   "Changelog": "• First stable release\n• Ultra-transparent glassmorphism UI\n• Mod sync detection\n• Settings and History features",
-  "ForceUpdate": false,
+  "ForceUpdate": true,
   "FileSize": 61500
 }
